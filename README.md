@@ -1,4 +1,4 @@
-# AI Tutor Local - Phase 2 🚀
+# AI Tutor Local🚀
 
 A standalone local AI Tutor app with **subject-wise organization** and **automatic YouTube video suggestions**. No external APIs required!
 
