@@ -6,4 +6,3 @@ sentence-transformers
 faiss-cpu
 youtube-search-python
 PyPDF2
-streamlit
