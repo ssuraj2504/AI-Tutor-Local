@@ -6,7 +6,7 @@ def main():
     print("Type 'exit' to quit.\n")
 
     while True:
-        subject = input("📘 Enter subject (e.g., OS, DBMS, CN): ").strip()
+        subject = input("📘 Enter subject (e.g., ML, DBMS, CN): ").strip()
         if subject.lower() == "exit":
             break
 
