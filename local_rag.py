@@ -1,17 +1,11 @@
 # local_rag.py
 import os
+import requests
+from config import RAPID_API_KEY, RAPID_API_URL, RAPID_API_HOST
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import CharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
-
-MODEL_NAME = "google/flan-t5-base"
-
-print("🔹 Loading model...")
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
-generator = pipeline("text2text-generation", model=model, tokenizer=tokenizer)
 
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
@@ -37,12 +31,37 @@ def build_or_load_index(subject):
                 loader = PyPDFLoader(os.path.join(pdf_path, file))
                 docs.extend(loader.load())
 
-        splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        splitter = CharacterTextSplitter(chunk_size=800, chunk_overlap=150)
         chunks = splitter.split_documents(docs)
         vectorstore = FAISS.from_documents(chunks, embeddings)
         vectorstore.save_local(index_path)
         print(f"✅ Index built for {subject} with {len(chunks)} chunks")
         return vectorstore
+
+
+def call_rapidapi_llm(prompt):
+    payload = {
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "web_access": False
+    }
+    headers = {
+        "x-rapidapi-key": RAPID_API_KEY,
+        "x-rapidapi-host": RAPID_API_HOST,
+        "Content-Type": "application/json"
+    }
+
+    try:
+        response = requests.post(RAPID_API_URL, json=payload, headers=headers)
+        data = response.json()
+        if "result" in data:
+            return data["result"].strip()
+        else:
+            return str(data)
+    except Exception as e:
+        return f"⚠️ API Error: {e}"
+
 
 def generate_answer(query, subject):
     index = build_or_load_index(subject)
@@ -50,9 +69,16 @@ def generate_answer(query, subject):
         return "No index found for this subject.", []
 
     results = index.similarity_search(query, k=3)
-    context = "\n".join([r.page_content for r in results])[:1500]
-    prompt = f"Answer the following question based on the context:\n\nContext:\n{context}\n\nQuestion: {query}"
+    context = "\n".join([r.page_content.strip() for r in results])[:1500]
 
-    output = generator(prompt, max_new_tokens=256)[0]['generated_text']
+    prompt = (
+        f"You are an AI tutor for engineering students.\n"
+        f"Use the following context from the notes to answer the question.\n\n"
+        f"Context:\n{context}\n\n"
+        f"Question: {query}\n\n"
+        f"Answer clearly and concisely for students."
+    )
+
+    answer = call_rapidapi_llm(prompt)
     sources = list({r.metadata['source'] for r in results})
-    return output, sources
+    return answer, sources
