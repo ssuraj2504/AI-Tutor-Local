@@ -4,7 +4,7 @@ import requests
 from config import RAPID_API_KEY, RAPID_API_URL, RAPID_API_HOST
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import CharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
@@ -41,9 +41,7 @@ def build_or_load_index(subject):
 
 def call_rapidapi_llm(prompt):
     payload = {
-        "messages": [
-            {"role": "user", "content": prompt}
-        ],
+        "messages": [{"role": "user", "content": prompt}],
         "web_access": False
     }
     headers = {
@@ -54,13 +52,17 @@ def call_rapidapi_llm(prompt):
 
     try:
         response = requests.post(RAPID_API_URL, json=payload, headers=headers)
+        print("🔹 API Status:", response.status_code)
+        print("🔹 API Response:", response.text)
         data = response.json()
         if "result" in data:
             return data["result"].strip()
         else:
             return str(data)
     except Exception as e:
+        print("⚠️ API Error:", e)
         return f"⚠️ API Error: {e}"
+
 
 
 def generate_answer(query, subject):
